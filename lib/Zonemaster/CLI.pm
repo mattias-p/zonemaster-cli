@@ -21,6 +21,8 @@ use Zonemaster::Engine::Translator;
 use Zonemaster::Engine::Util qw[pod_extract_for];
 use Zonemaster::Engine::Exception;
 use Zonemaster::Engine::Zone;
+use Zonemaster::Engine::Test;
+use Zonemaster::Engine::Profile;
 use Scalar::Util qw[blessed];
 use Encode;
 use Zonemaster::LDNS;
