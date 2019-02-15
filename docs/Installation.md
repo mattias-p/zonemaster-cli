@@ -38,6 +38,18 @@ This instruction covers the following operating systems:
 
 ### 1. CentOS
 
+Install binary dependencies:
+
+```sh
+sudo yum install perl-JSON-XS perl-Moosex-Getopt
+```
+
+Install dependencies from CPAN:
+
+```sh
+sudo cpanm Locale::Msgfmt Locale::TextDomain Text::Reflow
+```
+
 Install Zonemaster::CLI 
 
 ```sh
