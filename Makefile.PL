@@ -18,7 +18,7 @@ configure_requires( 'Locale::Msgfmt' => 0.15, );
 
 requires(
     'JSON::XS'           => 0,
-    'Locale::TextDomain' => 1.23,
+    'Locale::TextDomain' => 1.20,
     'MooseX::Getopt'     => 0,
     'Text::Reflow'       => 0,
     'Zonemaster::Engine' => 3.0,
