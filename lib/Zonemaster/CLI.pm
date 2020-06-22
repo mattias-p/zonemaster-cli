@@ -184,20 +184,6 @@ has 'profile' => (
     documentation => __( 'Name of profile file to load. (DEFAULT)' ),
 );
 
-has 'config' => (
-    is            => 'ro',
-    isa           => 'Str',
-    required      => 0,
-    documentation => __( 'Name of configuration file to load. (TERMINATED)' ),
-);
-
-has 'policy' => (
-    is            => 'ro',
-    isa           => 'Str',
-    required      => 0,
-    documentation => __( 'Name of policy file to load. (TERMINATED)' ),
-);
-
 has 'ds' => (
     is            => 'ro',
     isa           => 'ArrayRef[Str]',
@@ -312,20 +298,6 @@ sub run {
 	$profile->merge( $foo );
 	Zonemaster::Engine::Profile->effective->merge( $profile );
     }
-    else {
-
-        if ( $self->policy ) {
-            say $fh_diag __x( "Loading policy from {path}.", path => $self->policy );
-            say $fh_diag __x( "Use of config and policy have been TERMINATED, use profile instead." );
-            exit( 1 );
-        }
-
-        if ( $self->config ) {
-            say $fh_diag __x( "Loading configuration from {path}.", path => $self->config );
-            say $fh_diag __x( "Use of config and policy have been TERMINATED, use profile instead." );
-            exit( 1 );
-        }
-    }
 
     if ( $self->dump_profile ) {
         do_dump_profile();
@@ -410,7 +382,7 @@ sub run {
         }
     );
 
-    if ( $self->profile or $self->config or $self->policy ) {
+    if ( $self->profile ) {
         # Separate initialization from main output in human readable output mode
         print "\n" if $fh_diag eq *STDOUT;
     }
