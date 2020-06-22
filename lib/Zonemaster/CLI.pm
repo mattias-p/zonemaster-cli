@@ -247,22 +247,6 @@ has 'dump_profile' => (
     documentation => __( 'Print the effective profile used in JSON format, then exit.' ),
 );
 
-has 'dump_config' => (
-    is => 'ro',
-    isa => 'Bool',
-    required => 0,
-    default => 0,
-    documentation => __( 'Print the effective configuration used in JSON format, then exit. (TERMINATED)' ),
-);
-
-has 'dump_policy' => (
-    is => 'ro',
-    isa => 'Bool',
-    required => 0,
-    default => 0,
-    documentation => __( 'Print the effective policy used in JSON format, then exit. (TERMINATED)' ),
-);
-
 has 'sourceaddr' => (
     is => 'ro',
     isa => 'Str',
@@ -316,7 +300,7 @@ sub run {
     }
 
     # Filehandle for diagnostics output
-    my $fh_diag = ( $self->json or $self->json_stream or $self->raw or $self->dump_config or $self->dump_policy )
+    my $fh_diag = ( $self->json or $self->json_stream or $self->raw )
       ? *STDERR     # Structured output mode (e.g. JSON)
       : *STDOUT;    # Human readable output mode
 
@@ -345,14 +329,6 @@ sub run {
 
     if ( $self->dump_profile ) {
         do_dump_profile();
-    }
-    else {
-
-        if ( $self->dump_config or $self->dump_policy ) {
-            say $fh_diag __x( "TERMINATED, use dump_profile instead." );
-            exit( 1 );
-        }
-
     }
 
     if ( $self->stop_level and not defined( $numeric{ $self->stop_level } ) ) {
