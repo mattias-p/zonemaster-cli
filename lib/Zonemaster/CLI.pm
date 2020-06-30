@@ -331,19 +331,12 @@ sub run {
     }
 
     my $translator;
-    if ( $mode eq $MODE_NORMAL ) {
+    if ( $mode eq $MODE_NORMAL or $self->json_translate ) {
         $translator = Zonemaster::Engine::Translator->new;
         if ( $self->locale ) {
             $translator->locale( $self->locale );
         }
         eval { $translator->data };    # Provoke lazy loading of translation data
-    }
-
-    my $json_translator;
-    if ( $self->json_translate ) {
-        $json_translator = Zonemaster::Engine::Translator->new;
-        $json_translator->locale( $self->locale ) if $self->locale;
-        eval { $json_translator->data };
     }
 
     if ( $self->restore ) {
@@ -385,7 +378,7 @@ sub run {
                     $r{tag}       = $entry->tag;
                     $r{level}     = $entry->level;
                     $r{args}      = $entry->args if $entry->args;
-                    $r{message}   = $json_translator->translate_tag( $entry ) if $json_translator;
+                    $r{message}   = $translator->translate_tag( $entry ) if $self->json_translate;
 
                     say $JSON->encode( \%r );
                 }
