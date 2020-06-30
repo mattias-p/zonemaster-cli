@@ -29,9 +29,18 @@ use List::Util qw[max];
 use Text::Reflow qw[reflow_string];
 use JSON::XS;
 use File::Slurp;
+use Readonly;
 
 our %numeric = Zonemaster::Engine::Logger::Entry->levels;
 our $JSON    = JSON::XS->new->allow_blessed->convert_blessed->canonical;
+
+Readonly my $MODE_DUMP_PROFILE => 'dump_profile';
+Readonly my $MODE_LIST_TESTS   => 'list_tests';
+Readonly my $MODE_JSON         => 'json';
+Readonly my $MODE_JSON_STREAM  => 'json_stream';
+Readonly my $MODE_NORMAL       => 'normal';
+Readonly my $MODE_RAW          => 'raw';
+Readonly my $MODE_VERSION      => 'version';
 
 STDOUT->autoflush( 1 );
 
@@ -254,6 +263,15 @@ sub run {
     my %counter;
     my $printed_something;
 
+    my $mode =
+        ( $self->version )      ? $MODE_VERSION
+      : ( $self->list_tests )   ? $MODE_LIST_TESTS
+      : ( $self->dump_profile ) ? $MODE_DUMP_PROFILE
+      : ( $self->json_stream )  ? $MODE_JSON_STREAM
+      : ( $self->json )         ? $MODE_JSON
+      : ( $self->raw )          ? $MODE_RAW
+      :                           $MODE_NORMAL;
+
     if ( $self->locale ) {
         undef $ENV{LANGUAGE};
         $ENV{LC_ALL} = $self->locale;
@@ -269,13 +287,9 @@ sub run {
         $ENV{LC_ALL} || $ENV{LC_CTYPE};
     }
 
-    if ( $self->version ) {
+    if ( $mode eq $MODE_VERSION ) {
         print_versions();
-        exit;
-    }
-
-    if ( $self->list_tests ) {
-        print_test_list();
+        exit( 0 );
     }
 
     Zonemaster::Engine::Profile->effective->set( q{net.ipv4}, 0+$self->ipv4 );
@@ -286,9 +300,9 @@ sub run {
     }
 
     # Filehandle for diagnostics output
-    my $fh_diag = ( $self->json or $self->json_stream or $self->raw )
-      ? *STDERR     # Structured output mode (e.g. JSON)
-      : *STDOUT;    # Human readable output mode
+    my $fh_diag = ( $mode eq $MODE_NORMAL )
+      ? *STDOUT     # Human readable output mode
+      : *STDERR;    # Structured output mode (e.g. JSON)
 
     if ( $self->profile ) {
         say $fh_diag __x( "Loading profile from {path}.", path => $self->profile );
@@ -299,8 +313,13 @@ sub run {
 	Zonemaster::Engine::Profile->effective->merge( $profile );
     }
 
-    if ( $self->dump_profile ) {
+    if ( $mode eq $MODE_LIST_TESTS ) {
+        print_test_list();
+        exit( 0 );
+    }
+    elsif ( $mode eq $MODE_DUMP_PROFILE ) {
         do_dump_profile();
+        exit( 0 );
     }
 
     if ( $self->stop_level and not defined( $numeric{ $self->stop_level } ) ) {
@@ -312,9 +331,13 @@ sub run {
     }
 
     my $translator;
-    $translator = Zonemaster::Engine::Translator->new unless ( $self->raw or $self->json or $self->json_stream );
-    $translator->locale( $self->locale ) if $translator and $self->locale;
-    eval { $translator->data } if $translator;    # Provoke lazy loading of translation data
+    if ( $mode eq $MODE_NORMAL ) {
+        $translator = Zonemaster::Engine::Translator->new;
+        if ( $self->locale ) {
+            $translator->locale( $self->locale );
+        }
+        eval { $translator->data };    # Provoke lazy loading of translation data
+    }
 
     my $json_translator;
     if ( $self->json_translate ) {
@@ -339,7 +362,7 @@ sub run {
             if ( $numeric{ uc $entry->level } >= $numeric{ $self->level } ) {
                 $printed_something = 1;
 
-                if ( $translator ) {
+                if ( $mode eq $MODE_NORMAL ) {
                     if ( $self->time ) {
                         printf "%7.2f ", $entry->timestamp;
                     }
@@ -354,7 +377,7 @@ sub run {
 
                     say $translator->translate_tag( $entry );
                 }
-                elsif ( $self->json_stream ) {
+                elsif ( $mode eq $MODE_JSON_STREAM ) {
                     my %r;
 
                     $r{timestamp} = $entry->timestamp;
@@ -366,14 +389,19 @@ sub run {
 
                     say $JSON->encode( \%r );
                 }
-                elsif ( $self->json ) {
+                elsif ( $mode eq $MODE_JSON ) {
                     # Don't do anything
                 }
-                elsif ( $self->show_module ) {
-                    printf "%7.2f %-9s %-12s %s\n", $entry->timestamp, $entry->level, $entry->module, $entry->string;
+                elsif ( $mode eq $MODE_RAW ) {
+                    if ( $self->show_module ) {
+                        printf "%7.2f %-9s %-12s %s\n", $entry->timestamp, $entry->level, $entry->module, $entry->string;
+                    }
+                    else {
+                        printf "%7.2f %-9s %s\n", $entry->timestamp, $entry->level, $entry->string;
+                    }
                 }
                 else {
-                    printf "%7.2f %-9s %s\n", $entry->timestamp, $entry->level, $entry->string;
+                    die "unhandled mode: $mode";
                 }
             } ## end if ( $numeric{ uc $entry...})
             if ( $self->stop_level and $numeric{ uc $entry->level } >= $numeric{ $self->stop_level } ) {
@@ -392,7 +420,7 @@ sub run {
         die __( "Must give the name of a domain to test.\n" );
     }
 
-    if ( $translator ) {
+    if ( $mode eq $MODE_NORMAL ) {
         if ( $self->time ) {
             print __( 'Seconds ' );
         }
@@ -414,7 +442,7 @@ sub run {
             print __( '============ ' );
         }
         say __( '=======' );
-    } ## end if ( $translator )
+    } ## end if ( $mode eq $MODE_NORMAL)
 
     $domain = $self->to_idn( $domain );
 
@@ -443,7 +471,7 @@ sub run {
             Zonemaster::Engine->test_zone( $domain );
         }
     };
-    if ( $translator ) {
+    if ( $mode eq $MODE_NORMAL ) {
         if ( not $printed_something ) {
             say __( "Looks OK." );
         }
@@ -491,7 +519,7 @@ sub run {
         printf "Total test run time: %0.1f seconds.\n", $last->timestamp;
     }
 
-    if ( $self->json ) {
+    if ( $mode eq $MODE_JSON ) {
         say Zonemaster::Engine->logger->json( $self->level );
     }
 
@@ -613,7 +641,8 @@ sub print_test_list {
         }
         print "\n";
     }
-    exit( 0 );
+
+    return;
 } ## end sub print_test_list
 
 sub do_dump_profile {
@@ -621,7 +650,7 @@ sub do_dump_profile {
     
     print $json->encode( Zonemaster::Engine::Profile->effective->{ q{profile} } );
 
-    exit;
+    return;
 }
 
 sub translate_severity {
