@@ -287,6 +287,15 @@ sub run {
         $ENV{LC_ALL} || $ENV{LC_CTYPE};
     }
 
+    my $translator;
+    if ( $mode eq $MODE_NORMAL or $self->json_translate ) {
+        $translator = Zonemaster::Engine::Translator->new;
+        if ( $self->locale ) {
+            $translator->locale( $self->locale );
+        }
+        eval { $translator->data };    # Provoke lazy loading of translation data
+    }
+
     if ( $mode eq $MODE_VERSION ) {
         print_versions();
         exit( 0 );
@@ -328,15 +337,6 @@ sub run {
 
     if ( not defined $numeric{ $self->level } ) {
         die __( "--level must be one of CRITICAL, ERROR, WARNING, NOTICE, INFO, DEBUG, DEBUG2 or DEBUG3.\n" );
-    }
-
-    my $translator;
-    if ( $mode eq $MODE_NORMAL or $self->json_translate ) {
-        $translator = Zonemaster::Engine::Translator->new;
-        if ( $self->locale ) {
-            $translator->locale( $self->locale );
-        }
-        eval { $translator->data };    # Provoke lazy loading of translation data
     }
 
     if ( $self->restore ) {
