@@ -454,6 +454,10 @@ do {
           && ( $stdout !~ qr{ERROR}m );
       };
 
+    check_success 'CANNOT_CONTINUE',
+      [ '--no-ipv6', '--raw', 'mail.protection.outlook.com' ],
+      qr{CANNOT_CONTINUE};
+
     my $tempdir  = tempdir( CLEANUP => 1 );
     my $savefile = catfile( $tempdir, 'saved.data' );
     check_success 'run command', [ "--save=$savefile", '--test=basic01', '.' ], sub {
